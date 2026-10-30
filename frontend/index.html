@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="DDoS Attack Detection and Prevention System — College Project. Real-time dashboard showing ML-based detection, anomaly scoring, and simulated mitigation." />
+  <title>DDoS Detection System — Dashboard</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js (local bundle with CDN fallback) -->
+  <script src="chart.umd.min.js"></script>
+  <script>
+    if (typeof Chart === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"><\/script>');
+    }
+  </script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- =========================================================
+     HEADER
+========================================================= -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">🛡️</div>
+      <div>
+        <h1 class="brand-title">DDoS Detection System</h1>
+        <span class="brand-sub">College Project · Safe Simulation Mode</span>
+      </div>
+    </div>
+
+    <div class="header-status">
+      <div class="status-badge" id="system-status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Connecting…</span>
+      </div>
+      <div class="uptime-display">
+        <span class="label">Uptime</span>
+        <span id="uptime-value" class="mono">--:--</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simulation-mode safety banner -->
+  <div class="safety-banner">
+    ⚠️ <strong>Safe Simulation Mode:</strong> All traffic is synthetic. No real packets are sent.
+    No firewall rules are modified. Mitigation is logged only.
+  </div>
+
+  <!-- Connection / Environment Warning Banner (hidden when connected) -->
+  <div class="connection-banner" id="connection-banner" style="display: none;">
+    <span class="banner-icon">⚠️</span>
+    <span id="connection-banner-msg">Connecting to backend server…</span>
+  </div>
+</header>
+
+<!-- =========================================================
+     MAIN LAYOUT
+========================================================= -->
+<main class="dashboard-grid">
+
+  <!-- ===== TOP KPI CARDS ===== -->
+  <section class="kpi-row" aria-label="Key performance indicators">
+    <div class="kpi-card" id="kpi-total-packets">
+      <div class="kpi-icon">📦</div>
+      <div class="kpi-data">
+        <div class="kpi-value" id="kpi-packets-val">0</div>
+        <div class="kpi-label">Packets Processed</div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-attack" id="kpi-total-attacks">
+      <div class="kpi-icon">⚡</div>
+      <div class="kpi-data">
+        <div class="kpi-value" id="kpi-attacks-val">0</div>
+        <div class="kpi-label">Attacks Detected</div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-anomaly" id="kpi-total-anomalies">
+      <div class="kpi-icon">🔍</div>
+      <div class="kpi-data">
+        <div class="kpi-value" id="kpi-anomalies-val">0</div>
+        <div class="kpi-label">Anomalies Flagged</div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-block" id="kpi-blocked">
+      <div class="kpi-icon">🚫</div>
+      <div class="kpi-data">
+        <div class="kpi-value" id="kpi-blocked-val">0</div>
+        <div class="kpi-label">IPs Blocked (Sim.)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TRAFFIC CHART ===== -->
+  <section class="panel chart-panel" aria-label="Live traffic chart">
+    <div class="panel-header">
+      <h2 class="panel-title">📈 Live Traffic Statistics</h2>
+      <span class="panel-badge">Updates every 2s</span>
+    </div>
+    <div class="chart-container">
+      <canvas id="traffic-chart" aria-label="Packets per second chart"></canvas>
+    </div>
+    <div class="chart-legend">
+      <span class="legend-item legend-total">● Total packets/sec</span>
+      <span class="legend-item legend-attack">● Attack packets/sec</span>
+    </div>
+  </section>
+
+  <!-- ===== ALERT PANEL ===== -->
+  <section class="panel alert-panel" aria-label="Active alerts">
+    <div class="panel-header">
+      <h2 class="panel-title">🚨 Active Alerts</h2>
+      <span id="alert-count-badge" class="panel-badge badge-danger">0</span>
+    </div>
+    <div class="alert-list" id="alert-list">
+      <div class="empty-state">No alerts yet — system monitoring…</div>
+    </div>
+  </section>
+
+  <!-- ===== DETECTION FEED ===== -->
+  <section class="panel feed-panel" aria-label="Detection event feed">
+    <div class="panel-header">
+      <h2 class="panel-title">🔬 Detection Feed</h2>
+      <div class="feed-controls">
+        <label class="toggle-label" for="feed-pause-toggle">
+          <input type="checkbox" id="feed-pause-toggle" />
+          Pause
+        </label>
+      </div>
+    </div>
+    <div class="feed-table-wrap">
+      <table class="feed-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Source IP</th>
+            <th>ML Label</th>
+            <th>Conf.</th>
+            <th>Anomaly</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="feed-tbody">
+          <tr><td colspan="6" class="empty-state">Waiting for data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== MITIGATION LOG ===== -->
+  <section class="panel mitigation-panel" aria-label="Mitigation actions">
+    <div class="panel-header">
+      <h2 class="panel-title">🛡️ Mitigation Log <span class="sim-tag">SIMULATED</span></h2>
+    </div>
+    <div class="mitigation-stats-row">
+      <div class="mit-stat">
+        <div class="mit-stat-val" id="mit-blocked-count">0</div>
+        <div class="mit-stat-label">Blocked IPs</div>
+      </div>
+      <div class="mit-stat">
+        <div class="mit-stat-val" id="mit-rate-count">0</div>
+        <div class="mit-stat-label">Rate Limited</div>
+      </div>
+      <div class="mit-stat">
+        <div class="mit-stat-val" id="mit-action-count">0</div>
+        <div class="mit-stat-label">Total Actions</div>
+      </div>
+    </div>
+    <div class="mitigation-log-list" id="mitigation-log-list">
+      <div class="empty-state">No mitigation actions yet…</div>
+    </div>
+  </section>
+
+  <!-- ===== MODEL INFO ===== -->
+  <section class="panel model-panel" aria-label="Model information">
+    <div class="panel-header">
+      <h2 class="panel-title">🧠 ML Models</h2>
+    </div>
+
+    <div class="model-card" id="rf-model-card">
+      <div class="model-card-header">
+        <span class="model-type-badge badge-supervised">Supervised</span>
+        <span class="model-name">Random Forest Classifier</span>
+      </div>
+      <div class="model-detail-row">
+        <span class="detail-label">Task</span>
+        <span class="detail-val">Classify known attack types</span>
+      </div>
+      <div class="model-detail-row">
+        <span class="detail-label">Features</span>
+        <span class="detail-val mono" id="rf-feature-count">–</span>
+      </div>
+      <div class="model-detail-row">
+        <span class="detail-label">Classes</span>
+        <span class="detail-val mono" id="rf-classes">–</span>
+      </div>
+      <div class="model-note">
+        ⚠️ Trained on synthetic data. Performance metrics reflect the synthetic test set only.
+      </div>
+    </div>
+
+    <div class="model-card" id="iso-model-card">
+      <div class="model-card-header">
+        <span class="model-type-badge badge-anomaly">Anomaly</span>
+        <span class="model-name">Isolation Forest</span>
+      </div>
+      <div class="model-detail-row">
+        <span class="detail-label">Task</span>
+        <span class="detail-val">Detect novel / unknown attacks</span>
+      </div>
+      <div class="model-detail-row">
+        <span class="detail-label">Threshold</span>
+        <span class="detail-val mono" id="iso-threshold">–</span>
+      </div>
+      <div class="model-detail-row">
+        <span class="detail-label">Training</span>
+        <span class="detail-val">Normal traffic only (unsupervised)</span>
+      </div>
+      <div class="model-note">
+        Detects deviations from learned normal patterns — no attack labels needed.
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== DEMO CONTROLS ===== -->
+  <section class="panel demo-panel" aria-label="Simulation controls">
+    <div class="panel-header">
+      <h2 class="panel-title">🎮 Demo Controls</h2>
+      <span class="panel-badge">Simulation only</span>
+    </div>
+    <p class="demo-description">
+      Force a specific attack type into the simulation stream to see how the
+      detection pipeline responds. Click <strong>Stop Attack</strong> to return
+      to random mixed traffic.
+    </p>
+    <div class="attack-btn-grid">
+      <button class="attack-btn btn-syn"      id="btn-syn"      onclick="triggerAttack('syn_flood')">⚡ SYN Flood</button>
+      <button class="attack-btn btn-udp"      id="btn-udp"      onclick="triggerAttack('udp_flood')">💧 UDP Flood</button>
+      <button class="attack-btn btn-http"     id="btn-http"     onclick="triggerAttack('http_flood')">🌐 HTTP Flood</button>
+      <button class="attack-btn btn-icmp"     id="btn-icmp"     onclick="triggerAttack('icmp_flood')">📡 ICMP Flood</button>
+      <button class="attack-btn btn-slowloris" id="btn-slow"    onclick="triggerAttack('slowloris')">🐢 Slowloris</button>
+      <button class="attack-btn btn-unknown"  id="btn-unknown"  onclick="triggerAttack('unknown')">❓ Unknown</button>
+    </div>
+    <button class="stop-btn" id="btn-stop" onclick="stopAttack()">⛔ Stop Attack / Resume Normal</button>
+    <div class="demo-active-label" id="demo-active-label"></div>
+  </section>
+
+</main>
+
+<!-- =========================================================
+     FOOTER
+========================================================= -->
+<footer class="site-footer">
+  <span>DDoS Detection System · College Project</span>
+  <span class="footer-sep">|</span>
+  <span>Backend: Python / Flask / scikit-learn</span>
+  <span class="footer-sep">|</span>
+  <span>⚠️ Safe simulation — no real traffic modified</span>
+</footer>
+
+<script src="dashboard.js"></script>
+</body>
+</html>
